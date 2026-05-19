@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="h-full bg-slate-900 text-slate-100 font-sans antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>قسّط بلس - Qassit+ | بطاقة الأقساط الذكية</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <!-- Google Fonts (Tajawal) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome / Lucide Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- AlpineJS for reactive UI -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Chart.js for Admin Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- QRCode Generator for Wallet/Nafath -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom scrollbar for desktop preview */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        /* Shiny card animation */
+        .card-shine {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
+            backdrop-filter: blur(20px);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .apple-wallet-btn {
+            background-color: #000;
+            color: #fff;
+            border: 1px solid #333;
+        }
+        .google-wallet-btn {
+            background-color: #1a73e8;
+            color: #fff;
+        }
+        /* Card Flip effect */
+        .perspective {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 flex justify-center items-start min-h-screen select-none overflow-x-hidden" x-data="appData()">
+
+    <!-- Main Container: Designed as a sleek premium smartphone mockup on desktop, full screen on mobile -->
+    <div class="w-full max-w-md min-h-screen bg-slate-900 shadow-2xl relative flex flex-col border-x border-slate-800 overflow-hidden">
+        
+
+
+        <!-- App Header (Visible when logged in) -->
+        <header x-show="isLoggedIn" x-transition class="glass px-5 py-3.5 flex justify-between items-center sticky top-0 z-40">
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center font-bold shadow-lg shadow-cyan-500/20 text-white ring-2 ring-white/10">
+                    <i x-show="currentTab !== 'admin'" class="fa-solid fa-user-shield text-lg"></i>
+                    <i x-show="currentTab === 'admin'" class="fa-solid fa-bolt text-lg"></i>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400 flex items-center gap-1.5">
+                        <span x-text="currentTab === 'admin' ? 'لوحة التحكم للمدير' : 'مرحباً بك'"></span>
+                        <span x-show="currentTab !== 'admin' && currentUser.nafathVerified" class="text-emerald-400 text-xs flex items-center" title="موثق عبر نفاذ">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </span>
+                    </div>
+                    <div class="font-bold text-sm text-white" x-text="currentTab === 'admin' ? 'الإدارة العامة للمنصة' : currentUser.name"></div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 space-x-reverse">
+                <!-- Notifications Button -->
+                <button x-show="currentTab !== 'admin'" @click="showNotifications = true" class="relative w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700/50 flex items-center justify-center text-slate-300 active:scale-95 transition">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                </button>
+                <!-- Admin Switch Button (Only visible if isAdmin == true) -->
+                <button x-show="isAdmin" @click="toggleAdminTab()" class="w-10 h-10 rounded-xl border flex items-center justify-center transition active:scale-95" 
+                        :class="currentTab === 'admin' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-800/80 border-slate-700/50 text-indigo-400'">
+                    <i class="fa-solid" :class="currentTab === 'admin' ? 'fa-wallet' : 'fa-chart-pie'"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 pb-24 overflow-y-auto">
+
+            <!-- 1. LOGIN / NAFATH ONBOARDING SCREEN -->
+            <section x-show="!isLoggedIn && currentTab !== 'admin'" x-transition:enter="transition ease-out duration-300" class="p-6 flex flex-col items-center justify-center min-h-[80vh] text-center">
+                <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-fuchsia-600 p-0.5 mb-6 shadow-2xl shadow-indigo-500/30 animate-bounce">
+                    <div class="w-full h-full bg-slate-900 rounded-[23px] flex items-center justify-center">
+                        <i class="fa-solid fa-credit-card text-4xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400"></i>
+                    </div>
+                </div>
+
+                <h1 class="text-3xl font-extrabold mb-2 tracking-tight">قسّط <span class="gradient-text font-black">بـلـس</span></h1>
+                <p class="text-slate-400 text-sm mb-8 leading-relaxed max-w-xs">
+                    بطاقتك الائتمانية الرقمية الفورية للأقساط. اشترِ من أي مكان في العالم وقسّط حتى 36 شهراً بسهولة.
+                </p>
+
+                <!-- Value propositions -->
+                <div class="grid grid-cols-3 gap-3 w-full mb-8 text-center">
+                    <div class="bg-slate-800/60 border border-slate-700/50 p-3 rounded-2xl">
+                        <i class="fa-solid fa-globe text-cyan-400 text-xl mb-1"></i>
+                        <div class="text-xs font-bold">قبول عالمي</div>
+                        <div class="text-[10px] text-slate-400">Apple/Google Pay</div>
+                    </div>
+                    <div class="bg-slate-800/60 border border-slate-700/50 p-3 rounded-2xl">
+                        <i class="fa-solid fa-calendar-days text-indigo-400 text-xl mb-1"></i>
+                        <div class="text-xs font-bold">4 - 36 شهر</div>
+                        <div class="text-[10px] text-slate-400">أقساط مرنة جداً</div>
+                    </div>
+                    <div class="bg-slate-800/60 border border-slate-700/50 p-3 rounded-2xl">
+                        <i class="fa-solid fa-bolt text-purple-400 text-xl mb-1"></i>
+                        <div class="text-xs font-bold">إصدار فوري</div>
+                        <div class="text-[10px] text-slate-400">ربط فوري بسمة ونفاذ</div>
+                    </div>
+                </div>
+
+                <!-- Login Box -->
+                <div class="w-full glass p-6 rounded-3xl border border-slate-700/80 shadow-xl space-y-4 text-right">
+                    <div class="flex items-center space-x-2 space-x-reverse pb-2 border-b border-slate-800">
+                        <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+                        <span class="text-xs font-bold text-emerald-400">الربط المباشر مع النفاذ الوطني الموحد</span>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">رقم الهوية الوطنية / الإقامة</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-id-card"></i>
+                            </span>
+                            <input type="tel" x-model="loginId" maxlength="10" placeholder="10xxxxxxxx" 
+                                class="w-full bg-slate-900/90 border border-slate-700 rounded-xl py-3.5 pr-10 pl-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-left font-mono">
+                        </div>
+                        <span class="text-[11px] text-slate-500 mt-1 block">أدخل رقم الهوية المكون من 10 أرقام (يبدأ بـ 1 أو 2)</span>
+                    </div>
+
+                    <button @click="initiateNafathLogin()" :disabled="loginId.length < 10" 
+                        class="w-full mt-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center justify-center space-x-2 space-x-reverse disabled:opacity-50 disabled:cursor-not-allowed transition transform active:scale-98">
+                        <span>تسجيل الدخول عبر نفاذ</span>
+                        <i class="fa-solid fa-arrow-left text-sm"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 2. NAFATH VERIFICATION MODAL SIMULATION -->
+            <div x-show="showNafathModal" x-transition class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
+                <div @click.away="showNafathModal = false" class="bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-6">
+                    <div class="w-20 h-20 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+                        <i class="fa-solid fa-fingerprint text-4xl animate-pulse"></i>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="text-xl font-bold text-white">تطبيق نفاذ الوطني</h3>
+                        <p class="text-slate-300 text-sm">الرجاء فتح تطبيق نفاذ واختيار الرقم التوثيقي التالي لإتمام عملية تسجيل الدخول وإنشاء البطاقة الرقمية:</p>
+                    </div>
+
+                    <!-- Number match display -->
+                    <div class="py-4 px-8 bg-slate-950 rounded-2xl border border-emerald-500/50 inline-block shadow-inner">
+                        <span class="text-5xl font-black text-emerald-400 font-mono tracking-widest" x-text="nafathRandomNumber"></span>
+                    </div>
+
+                    <div class="text-xs text-slate-400 flex items-center justify-center gap-2 bg-slate-900/80 py-2.5 px-4 rounded-xl border border-slate-800">
+                        <i class="fa-solid fa-spinner animate-spin text-cyan-400"></i>
+                        <span>بانتظار تأكيدك من تطبيق نفاذ...</span>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-700/60 flex space-x-3 space-x-reverse">
+                        <button @click="completeNafathVerification()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/30 text-sm transition">
+                            تم التأكيد بنجاح (محاكاة)
+                        </button>
+                        <button @click="showNafathModal = false" class="bg-slate-700 hover:bg-slate-600 text-slate-300 py-3 px-4 rounded-xl text-sm transition">
+                            إلغاء
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. SIMAH & LIMIT ASSIGNMENT SUCCESS MODAL -->
+            <div x-show="showLimitAssignedModal" x-transition class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
+                <div class="bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 border border-cyan-500/40 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-6">
+                    <div class="w-20 h-20 bg-gradient-to-tr from-cyan-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-cyan-500/30 text-white">
+                        <i class="fa-solid fa-circle-check text-4xl"></i>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-indigo-300">تم إنشاء حسابك وبطاقتك!</h3>
+                        <p class="text-slate-300 text-xs leading-relaxed">
+                            تم سحب بياناتك الموثقة من نفاذ وتحليل التزاماتك المالية وسجل السداد عبر <span class="text-cyan-400 font-bold">سمة (SIMAH)</span> بنجاح.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 text-right space-y-2.5">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">الاسم المطابق:</span>
+                            <span class="font-bold text-white" x-text="currentUser.name"></span>
+                        </div>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">الراتب الشهري المسجل:</span>
+                            <span class="font-bold text-emerald-400"><span x-text="currentUser.salary.toLocaleString()"></span> ريال</span>
+                        </div>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">التقييم الائتماني (سمة):</span>
+                            <span class="font-bold text-cyan-400" x-text="currentUser.simahScore + ' / 850 (ممتاز)'"></span>
+                        </div>
+                        <div class="h-px bg-slate-800 my-2"></div>
+                        <div class="flex justify-between items-center pt-1">
+                            <span class="text-sm font-bold text-slate-200">الحد الائتماني الممنوح:</span>
+                            <span class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-mono"><span x-text="currentUser.creditLimit.toLocaleString()"></span> SAR</span>
+                        </div>
+                    </div>
+
+                    <button @click="startUsingApp()" class="w-full bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-cyan-500/30 text-sm transition">
+                        استعراض البطاقة والبدء بالتسوق
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4. MAIN APP TABS (HOME - WALLET/CARD - INSTALLMENTS - STORES - PROFILE) -->
+            <div x-show="isLoggedIn && currentTab !== 'admin'" x-transition class="p-5 space-y-6">
+
+                <!-- TAB 1: HOME DASHBOARD -->
+                <div x-show="currentTab === 'home'" x-transition:enter="transition ease-out duration-200" class="space-y-6">
+                    
+                    <!-- Credit Summary Banner -->
+                    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 border border-indigo-500/30 p-6 shadow-2xl shadow-indigo-950/50">
+                        <div class="absolute -right-12 -top-12 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                        <div class="absolute -left-12 -bottom-12 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <span class="text-xs text-slate-300 font-medium">الرصيد المتاح للتسوق</span>
+                                <div class="text-3xl font-black text-white mt-1 flex items-baseline gap-1.5 font-mono">
+                                    <span x-text="currentUser.availableLimit.toLocaleString()">15,000</span>
+                                    <span class="text-sm font-normal text-cyan-400">ر.س</span>
+                                </div>
+                            </div>
+                            <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] px-2.5 py-1 rounded-full font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-bolt text-emerald-400 text-xs"></i> فعال
+                            </span>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="space-y-1.5 mb-5">
+                            <div class="flex justify-between text-[11px] text-slate-400">
+                                <span>المستخدم: <b class="text-slate-200" x-text="currentUser.usedLimit.toLocaleString() + ' ر.س'"></b></span>
+                                <span>الحد الكلي: <b class="text-slate-200" x-text="currentUser.creditLimit.toLocaleString() + ' ر.س'"></b></span>
+                            </div>
+                            <div class="w-full bg-slate-800/80 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                                <div class="bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500 h-full rounded-full transition-all duration-500"
+                                     :style="`width: ${(currentUser.usedLimit / currentUser.creditLimit) * 100}%`"></div>
+                            </div>
+                        </div>
+
+                        <!-- Action buttons for Apple/Google Wallet -->
+                        <div class="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-800/80">
+                            <button @click="addToAppleWallet()" class="apple-wallet-btn font-semibold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 space-x-reverse transition active:scale-95 shadow-md shadow-black/50">
+                                <i class="fa-brands fa-apple text-base"></i>
+                                <span>أضف إلى Apple Wallet</span>
+                            </button>
+                            <button @click="addToGoogleWallet()" class="google-wallet-btn font-semibold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 space-x-reverse transition active:scale-95 shadow-md shadow-blue-900/30">
+                                <i class="fa-brands fa-google-pay text-lg"></i>
+                                <span>أضف إلى Google Wallet</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Simulator Purchase Button Banner -->
+                    <div class="bg-gradient-to-r from-cyan-500/10 via-indigo-500/10 to-purple-500/10 border border-cyan-500/20 rounded-2xl p-4 flex items-center justify-between">
+                        <div class="flex items-center space-x-3 space-x-reverse">
+                            <div class="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-cart-shopping"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-white">محاكاة الشراء من المتاجر</h4>
+                                <p class="text-xs text-slate-400">اختر متجراً واشترِ بالبطاقة فوراً لتحويلها لأقساط</p>
+                            </div>
+                        </div>
+                        <button @click="openStoreSimulationModal()" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-cyan-500/20 active:scale-95 transition">
+                            ابدأ التسوق
+                        </button>
+                    </div>
+
+                    <!-- Installment Plans Slider Preview -->
+                    <div class="glass p-5 rounded-3xl border border-slate-800 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-calculator text-indigo-400"></i>
+                                حاسبة الأقساط المرنة (4 إلى 36 شهراً)
+                            </h3>
+                            <span class="text-xs text-cyan-400 font-bold bg-cyan-500/10 px-2 py-0.5 rounded">0% فائدة إضافية</span>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-400 mb-1">
+                                <span>مبلغ الشراء التجريبي:</span>
+                                <span class="font-bold text-white font-mono" x-text="simCalcAmount.toLocaleString() + ' ر.س'"></span>
+                            </div>
+                            <input type="range" min="500" max="25000" step="500" x-model="simCalcAmount"
+                                class="w-full accent-cyan-400 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-400 mb-1">
+                                <span>مدة التقسيط:</span>
+                                <span class="font-bold text-indigo-400" x-text="simCalcMonths + ' أشهر'"></span>
+                            </div>
+                            <input type="range" min="4" max="36" step="1" x-model="simCalcMonths"
+                                class="w-full accent-indigo-500 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div class="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800 flex justify-between items-center">
+                            <div>
+                                <span class="text-[11px] text-slate-400 block">القسط الشهري المتوقع</span>
+                                <span class="text-xl font-black text-emerald-400 font-mono" x-text="Math.round(simCalcAmount / simCalcMonths).toLocaleString()"></span> 
+                                <span class="text-xs text-slate-400">ر.س / شهر</span>
+                            </div>
+                            <button @click="openStoreSimulationModalWith(simCalcAmount, simCalcMonths)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-xl border border-slate-700 transition">
+                                تطبيق الآن
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions & Installments -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-sm text-slate-300">أحدث عمليات الشراء والأقساط</h3>
+                            <button @click="currentTab = 'installments'" class="text-xs text-cyan-400 hover:underline">عرض الكل</button>
+                        </div>
+
+                        <div class="space-y-2.5">
+                            <template x-for="txn in currentUser.transactions.slice(0, 3)" :key="txn.id">
+                                <div class="glass p-3.5 rounded-2xl flex justify-between items-center border border-slate-800/80">
+                                    <div class="flex items-center space-x-3 space-x-reverse">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-lg text-slate-200 border border-slate-700" x-html="getStoreIcon(txn.store)"></div>
+                                        <div>
+                                            <div class="font-bold text-xs text-white" x-text="txn.store"></div>
+                                            <div class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                                <span x-text="txn.date"></span> • 
+                                                <span class="text-indigo-400" x-text="txn.planMonths + ' أشهر'"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-left">
+                                        <div class="font-bold text-sm font-mono text-white" x-text="txn.totalAmount.toLocaleString() + ' SAR'"></div>
+                                        <div class="text-[11px] text-emerald-400 font-medium mt-0.5" x-text="txn.monthlyInstallment.toLocaleString() + ' / شهر'"></div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div x-show="currentUser.transactions.length === 0" class="text-center py-8 text-slate-500 text-xs glass rounded-2xl border border-slate-800/60">
+                                <i class="fa-solid fa-receipt text-2xl mb-2 text-slate-600"></i>
+                                <p>لم تقم بأي عملية شراء بالبطاقة حتى الآن.</p>
+                                <button @click="openStoreSimulationModal()" class="text-cyan-400 font-bold mt-2 underline">جرّب الشراء التجريبي</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- App Features Highlights -->
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <div class="glass p-4 rounded-2xl border border-slate-800 space-y-1.5">
+                            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <h4 class="font-bold text-xs text-slate-200">حماية عالية</h4>
+                            <p class="text-[11px] text-slate-400 leading-snug">بطاقة رقمية مشفرة قابلة للتجميد الفوري في أي لحظة.</p>
+                        </div>
+                        <div class="glass p-4 rounded-2xl border border-slate-800 space-y-1.5">
+                            <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                                <i class="fa-solid fa-percent"></i>
+                            </div>
+                            <h4 class="font-bold text-xs text-slate-200">بدون رسوم خفية</h4>
+                            <p class="text-[11px] text-slate-400 leading-snug">نظام تقسيط متوافق ومبني على الشفافية التامة.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: VIRTUAL CARD & WALLETS AREA -->
+                <div x-show="currentTab === 'card'" x-transition:enter="transition ease-out duration-200" class="space-y-6">
+                    <div class="text-center space-y-1">
+                        <h2 class="text-xl font-extrabold text-white">بطاقتك الائتمانية الرقمية</h2>
+                        <p class="text-xs text-slate-400">تمكّنك من الدفع في أجهزة نقاط البيع حول العالم والمتاجر الإلكترونية</p>
+                    </div>
+
+                    <!-- 3D FLIPPABLE VIRTUAL CARD -->
+                    <div class="perspective cursor-pointer" @click="flipCard = !flipCard">
+                        <div class="relative w-full h-56 rounded-3xl transition-transform duration-700 transform-style-3d shadow-2xl"
+                             :class="flipCard ? 'rotate-y-180' : ''">
+                            
+                            <!-- Card FRONT -->
+                            <div class="absolute inset-0 w-full h-full rounded-3xl p-6 text-white backface-hidden overflow-hidden flex flex-col justify-between border border-white/20 shadow-xl"
+                                 :class="currentUser.cardFrozen ? 'bg-gradient-to-tr from-slate-700 via-slate-800 to-slate-900 opacity-80' : 'bg-gradient-to-tr from-slate-900 via-indigo-950 to-purple-950'">
+                                
+                                <!-- Card Background glow -->
+                                <div class="absolute -right-12 -top-12 w-32 h-32 bg-cyan-400/20 rounded-full blur-2xl pointer-events-none"></div>
+                                <div class="absolute -left-12 -bottom-12 w-32 h-32 bg-purple-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+                                <!-- Card Header -->
+                                <div class="flex justify-between items-start z-10">
+                                    <div class="flex items-center space-x-2 space-x-reverse">
+                                        <i class="fa-solid fa-nfc-signal text-xl text-cyan-300 animate-pulse"></i>
+                                        <span class="text-[11px] font-bold text-slate-300 tracking-wider">QASSIT PLUS</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <i class="fa-brands fa-cc-mastercard text-4xl text-slate-100"></i>
+                                    </div>
+                                </div>
+
+                                <!-- EMV Chip & Frozen Badge -->
+                                <div class="flex justify-between items-center z-10">
+                                    <div class="w-11 h-8 rounded-md bg-gradient-to-tr from-amber-200 via-amber-400 to-amber-500 flex items-center justify-center shadow-inner opacity-90 border border-amber-600/30">
+                                        <div class="w-full h-full rounded border border-amber-700/30 opacity-50 grid grid-cols-3 grid-rows-3 gap-0.5"></div>
+                                    </div>
+                                    <div x-show="currentUser.cardFrozen" class="bg-rose-500/20 text-rose-300 border border-rose-500/50 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 animate-pulse">
+                                        <i class="fa-solid fa-snowflake"></i> البطاقة مجمدة
+                                    </div>
+                                </div>
+
+                                <!-- Card Number -->
+                                <div class="z-10 font-mono text-xl md:text-2xl tracking-widest text-white font-bold flex justify-between items-center pt-2">
+                                    <span x-text="showCardDetails ? currentUser.cardNumber.slice(0,4) : '••••'"></span>
+                                    <span x-text="showCardDetails ? currentUser.cardNumber.slice(4,8) : '••••'"></span>
+                                    <span x-text="showCardDetails ? currentUser.cardNumber.slice(8,12) : '••••'"></span>
+                                    <span x-text="currentUser.cardNumber.slice(12,16)"></span>
+                                </div>
+
+                                <!-- Card Footer (Holder & Expiry) -->
+                                <div class="z-10 flex justify-between items-end text-xs uppercase font-mono tracking-wider">
+                                    <div>
+                                        <div class="text-[9px] text-slate-400 mb-0.5 font-sans">اسم حامل البطاقة</div>
+                                        <div class="font-bold text-sm tracking-wide" x-text="currentUser.name"></div>
+                                    </div>
+                                    <div class="flex space-x-6 space-x-reverse">
+                                        <div>
+                                            <div class="text-[9px] text-slate-400 mb-0.5 font-sans">تاريخ الانتهاء</div>
+                                            <div class="font-bold" x-text="currentUser.cardExpiry"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card BACK -->
+                            <div class="absolute inset-0 w-full h-full rounded-3xl bg-slate-900 text-white backface-hidden rotate-y-180 overflow-hidden flex flex-col justify-between py-6 border border-white/20 shadow-xl">
+                                <!-- Magnetic Stripe -->
+                                <div class="w-full h-12 bg-black mt-2"></div>
+
+                                <!-- CVV / Signature Bar -->
+                                <div class="px-6 flex items-center space-x-3 space-x-reverse">
+                                    <div class="flex-1 h-9 bg-slate-200 rounded text-slate-800 flex items-center justify-end px-3 font-mono font-bold text-sm">
+                                        <span x-text="showCardDetails ? currentUser.cardCvv : '•••'"></span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-400">رمز الأمان (CVV)</div>
+                                </div>
+
+                                <!-- Disclaimers -->
+                                <div class="px-6 text-[10px] text-slate-500 leading-tight">
+                                    هذه البطاقة صادرة عن شركة قسّط بلس التمويلية بموجب ترخيص البنك المركزي السعودي بالتعاون مع ماستركارد العالمية.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <span class="text-[11px] text-slate-400">انقر على البطاقة لقلبها وعرض الوجه الآخر</span>
+                    </div>
+
+                    <!-- Card Actions -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <button @click="showCardDetails = !showCardDetails" class="glass p-3 rounded-2xl text-center hover:bg-slate-800/80 transition active:scale-95 border border-slate-800">
+                            <i class="fa-solid text-lg mb-1 text-cyan-400" :class="showCardDetails ? 'fa-eye-slash' : 'fa-eye'"></i>
+                            <div class="text-xs font-bold" x-text="showCardDetails ? 'إخفاء الأرقام' : 'إظهار الأرقام'"></div>
+                        </button>
+                        <button @click="copyCardNumber()" class="glass p-3 rounded-2xl text-center hover:bg-slate-800/80 transition active:scale-95 border border-slate-800">
+                            <i class="fa-solid fa-copy text-lg mb-1 text-indigo-400"></i>
+                            <div class="text-xs font-bold">نسخ الرقم</div>
+                        </button>
+                        <button @click="toggleCardFreeze()" class="glass p-3 rounded-2xl text-center hover:bg-slate-800/80 transition active:scale-95 border border-slate-800">
+                            <i class="fa-solid text-lg mb-1" :class="currentUser.cardFrozen ? 'fa-unlock text-emerald-400' : 'fa-lock text-rose-400'"></i>
+                            <div class="text-xs font-bold" x-text="currentUser.cardFrozen ? 'تنشيط البطاقة' : 'تجميد البطاقة'"></div>
+                        </button>
+                    </div>
+
+                    <!-- Apple / Google Wallet Giant Add Buttons -->
+                    <div class="space-y-3 pt-2">
+                        <div class="text-xs font-bold text-slate-300 mb-2">إضافة إلى محافظ الهواتف الذكية:</div>
+                        <button @click="addToAppleWallet()" class="w-full apple-wallet-btn font-bold py-3.5 px-5 rounded-2xl flex items-center justify-between text-sm shadow-xl active:scale-98 transition">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <i class="fa-brands fa-apple text-2xl"></i>
+                                <span>إضافة إلى Apple Wallet</span>
+                            </div>
+                            <i class="fa-solid fa-plus bg-white/20 w-7 h-7 rounded-full flex items-center justify-center text-xs"></i>
+                        </button>
+
+                        <button @click="addToGoogleWallet()" class="w-full google-wallet-btn font-bold py-3.5 px-5 rounded-2xl flex items-center justify-between text-sm shadow-xl active:scale-98 transition">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <i class="fa-brands fa-google-pay text-3xl"></i>
+                                <span>إضافة إلى Google Wallet</span>
+                            </div>
+                            <i class="fa-solid fa-plus bg-black/20 w-7 h-7 rounded-full flex items-center justify-center text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- How to Pay in stores info -->
+                    <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl space-y-2">
+                        <h4 class="font-bold text-xs text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-cyan-400"></i> كيف أدفع في المتاجر والمطاعم؟
+                        </h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            بعد إضافة البطاقة لمحفظة Apple/Google، اضغط مرتين على زر التشغيل في هاتفك وقم بتمريره على أي جهاز نقاط بيع (POS). سيتم سحب المبلغ من رصيدك المتاح، وتستطيع تحويل العملية فوراً إلى خطة التقسيط التي تناسبك من التطبيق!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- TAB 3: INSTALLMENTS & PLANS -->
+                <div x-show="currentTab === 'installments'" x-transition:enter="transition ease-out duration-200" class="space-y-5">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-xl font-extrabold text-white">خطط السداد النشطة</h2>
+                            <p class="text-xs text-slate-400">إجمالي الالتزامات الشهرية والأقساط المستحقة</p>
+                        </div>
+                        <div class="bg-slate-800 py-1.5 px-3 rounded-xl border border-slate-700 text-center">
+                            <span class="text-[10px] text-slate-400 block">القسط القادم</span>
+                            <span class="font-black text-sm text-emerald-400 font-mono" x-text="getNextInstallmentTotal() + ' SAR'"></span>
+                        </div>
+                    </div>
+
+                    <!-- Filter buttons -->
+                    <div class="flex space-x-2 space-x-reverse bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-bold">
+                        <button @click="installmentFilter = 'all'" class="flex-1 py-2 rounded-lg transition" :class="installmentFilter === 'all' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400'">الكل</button>
+                        <button @click="installmentFilter = 'active'" class="flex-1 py-2 rounded-lg transition" :class="installmentFilter === 'active' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400'">النشطة</button>
+                        <button @click="installmentFilter = 'completed'" class="flex-1 py-2 rounded-lg transition" :class="installmentFilter === 'completed' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400'">المكتملة</button>
+                    </div>
+
+                    <!-- Installments List -->
+                    <div class="space-y-4">
+                        <template x-for="txn in filteredTransactions()" :key="txn.id">
+                            <div class="glass p-4 rounded-3xl border border-slate-800 space-y-3 shadow-xl">
+                                <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                                    <div class="flex items-center space-x-3 space-x-reverse">
+                                        <div class="w-11 h-11 rounded-xl bg-slate-800 flex items-center justify-center text-xl text-slate-200 border border-slate-700" x-html="getStoreIcon(txn.store)"></div>
+                                        <div>
+                                            <h4 class="font-bold text-sm text-white" x-text="txn.store"></h4>
+                                            <span class="text-xs text-slate-400" x-text="txn.date"></span>
+                                        </div>
+                                    </div>
+                                    <div class="text-left">
+                                        <span class="font-bold font-mono text-base text-white" x-text="txn.totalAmount.toLocaleString() + ' SAR'"></span>
+                                        <span class="block text-[11px]" :class="txn.status === 'active' ? 'text-cyan-400 font-semibold' : 'text-emerald-400'">
+                                            <i class="fa-solid" :class="txn.status === 'active' ? 'fa-spinner animate-spin' : 'fa-check-double'"></i>
+                                            <span x-text="txn.status === 'active' ? 'قيد السداد' : 'مكتمل'"></span>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Plan Details & Progress -->
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-xs text-slate-300">
+                                        <span>خطة التقسيط: <b class="text-indigo-400" x-text="txn.planMonths + ' أشهر'"></b></span>
+                                        <span>القسط الشهري: <b class="text-emerald-400 font-mono" x-text="txn.monthlyInstallment.toLocaleString() + ' SAR'"></b></span>
+                                    </div>
+                                    
+                                    <!-- Progress indicator -->
+                                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                        <div class="bg-gradient-to-r from-emerald-500 to-cyan-500 h-full" :style="`width: ${(txn.paidMonths / txn.planMonths) * 100}%`"></div>
+                                    </div>
+
+                                    <div class="flex justify-between text-[11px] text-slate-400">
+                                        <span>تم دفع: <b class="text-slate-200" x-text="txn.paidMonths + ' أقساط'"></b></span>
+                                        <span>المتبقي: <b class="text-slate-200" x-text="(txn.planMonths - txn.paidMonths) + ' أقساط'"></b></span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Pay Next Installment -->
+                                <div x-show="txn.status === 'active'" class="pt-2 flex justify-between items-center border-t border-slate-800/80">
+                                    <div class="text-xs text-slate-400">
+                                        الاستحقاق القادم: <span class="text-slate-200 font-semibold" x-text="txn.nextDueDate"></span>
+                                    </div>
+                                    <button @click="payInstallment(txn.id)" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition">
+                                        سداد القسط الآن
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="filteredTransactions().length === 0" class="text-center py-12 text-slate-500 text-xs">
+                            <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-600"></i>
+                            <p>لا توجد خطط سداد مطابقة للفلتر المحدد.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: SIMULATOR STORES & OFFERS -->
+                <div x-show="currentTab === 'stores'" x-transition:enter="transition ease-out duration-200" class="space-y-6">
+                    <div class="space-y-1">
+                        <h2 class="text-xl font-extrabold text-white">المتاجر المدعومة عالمياً</h2>
+                        <p class="text-xs text-slate-400">تستطيع الشراء من أي متجر في العالم ببطاقتك، وهذه قائمة بأشهر المتاجر في السعودية</p>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="relative">
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input type="text" x-model="storeSearchQuery" placeholder="ابحث عن متجر (جرير، نون، اكسترا...)"
+                            class="w-full bg-slate-900 border border-slate-800 rounded-2xl py-3.5 pr-11 pl-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    </div>
+
+                    <!-- Stores Grid -->
+                    <div class="grid grid-cols-2 gap-3.5">
+                        <template x-for="store in filteredStores()" :key="store.name">
+                            <div class="glass p-4 rounded-3xl border border-slate-800/80 flex flex-col justify-between space-y-3 hover:border-cyan-500/40 transition">
+                                <div class="flex items-center space-x-3 space-x-reverse">
+                                    <div class="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-2xl text-slate-200 border border-slate-700/80 shadow-md" x-html="store.icon"></div>
+                                    <div>
+                                        <h4 class="font-bold text-sm text-white" x-text="store.name"></h4>
+                                        <span class="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full font-bold mt-1 inline-block" x-text="store.category"></span>
+                                    </div>
+                                </div>
+                                
+                                <p class="text-[11px] text-slate-400 leading-snug" x-text="store.desc"></p>
+
+                                <button @click="openStoreSimulationModalWithStore(store.name)" class="w-full bg-slate-800 hover:bg-indigo-600 hover:border-indigo-500 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5">
+                                    <span>تسوق وقسّط الآن</span>
+                                    <i class="fa-solid fa-arrow-left text-[10px]"></i>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- TAB 5: USER PROFILE & SETTINGS -->
+                <div x-show="currentTab === 'profile'" x-transition:enter="transition ease-out duration-200" class="space-y-6">
+                    <div class="text-center py-4 space-y-3">
+                        <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white mx-auto shadow-xl ring-4 ring-slate-800">
+                            <i class="fa-solid fa-user-check font-normal"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-lg text-white" x-text="currentUser.name"></h3>
+                            <span class="text-xs bg-emerald-500/10 text-emerald-400 font-bold px-3 py-1 rounded-full inline-block mt-1">
+                                <i class="fa-solid fa-shield-halved"></i> حساب موثق بالنفاذ الوطني
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Verified Data Section -->
+                    <div class="glass p-5 rounded-3xl border border-slate-800 space-y-3.5">
+                        <h4 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">بيانات السجل الائتماني والمالي</h4>
+                        
+                        <div class="flex justify-between items-center py-2 border-b border-slate-800">
+                            <span class="text-xs text-slate-300">رقم الهوية الوطنية:</span>
+                            <span class="font-mono text-sm font-bold text-white" x-text="currentUser.idNumber"></span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-slate-800">
+                            <span class="text-xs text-slate-300">الراتب الشهري (نفاذ/التأمينات):</span>
+                            <span class="font-mono text-sm font-bold text-emerald-400"><span x-text="currentUser.salary.toLocaleString()"></span> SAR</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-slate-800">
+                            <span class="text-xs text-slate-300">سجل سمة الائتماني:</span>
+                            <span class="font-mono text-sm font-bold text-cyan-400" x-text="currentUser.simahScore + ' (ممتاز)'"></span>
+                        </div>
+                        <div class="flex justify-between items-center py-2">
+                            <span class="text-xs text-slate-300">تاريخ الانضمام:</span>
+                            <span class="text-xs text-slate-400" x-text="currentUser.joinDate"></span>
+                        </div>
+                    </div>
+
+                    <!-- Salary Deduction Section (SAMA & Open Banking) -->
+                    <div class="glass p-5 rounded-3xl border border-slate-800 space-y-3.5">
+                        <div class="flex justify-between items-center mb-1">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-building-columns text-emerald-400"></i>
+                                <span>خدمة الاستقطاع المباشر (سداد الأقساط)</span>
+                            </h4>
+                            <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">موثق بنكياً</span>
+                        </div>
+                        
+                        <div class="space-y-2 text-right">
+                            <div class="bg-slate-900/90 p-3 rounded-2xl border border-slate-800 text-xs flex justify-between items-center">
+                                <span class="text-slate-400">البنك المرتبط (الراتب):</span>
+                                <span class="font-bold text-white" x-text="currentUser.deductionBank"></span>
+                            </div>
+                            <div class="bg-slate-900/90 p-3 rounded-2xl border border-slate-800 text-xs flex justify-between items-center">
+                                <span class="text-slate-400">حالة الربط:</span>
+                                <span class="font-bold text-cyan-400" x-text="currentUser.deductionStatus"></span>
+                            </div>
+                            <div class="bg-slate-900/90 p-3 rounded-2xl border border-slate-800 text-xs">
+                                <span class="text-slate-400 block mb-1">رقم الآيبان (IBAN):</span>
+                                <span class="font-mono font-bold text-slate-200 text-left block" x-text="currentUser.deductionIban"></span>
+                            </div>
+                        </div>
+
+                        <button @click="showDeductionModal = true" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-xl text-xs shadow-lg shadow-emerald-600/20 transition active:scale-98 flex items-center justify-center gap-2 mt-2">
+                            <i class="fa-solid fa-gears"></i>
+                            <span>إدارة إعدادات الاستقطاع والأوبن بانكينق</span>
+                        </button>
+                    </div>
+
+                    <!-- Settings Options -->
+                    <div class="space-y-2">
+                        <button @click="showSimahUpdateToast()" class="w-full glass p-4 rounded-2xl border border-slate-800 flex justify-between items-center hover:bg-slate-800/80 transition">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <i class="fa-solid fa-rotate text-cyan-400 text-lg"></i>
+                                <span class="text-xs font-bold text-slate-200">تحديث البيانات الائتمانية من سمة</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-left text-xs text-slate-500"></i>
+                        </button>
+
+                        <button @click="showSupportModal = true" class="w-full glass p-4 rounded-2xl border border-slate-800 flex justify-between items-center hover:bg-slate-800/80 transition">
+                            <div class="flex items-center space-x-3 space-x-reverse">
+                                <i class="fa-solid fa-headset text-indigo-400 text-lg"></i>
+                                <span class="text-xs font-bold text-slate-200">الدعم الفني والأسئلة الشائعة</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-left text-xs text-slate-500"></i>
+                        </button>
+
+                        <button @click="logout()" class="w-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 p-4 rounded-2xl flex items-center justify-center space-x-2 space-x-reverse text-rose-400 text-xs font-bold transition mt-4">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            <span>تسجيل الخروج</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 5. ADMIN DASHBOARD SCREEN -->
+            <section x-show="currentTab === 'admin'" x-transition:enter="transition ease-out duration-300" class="p-5 space-y-6">
+                <!-- Admin Header Banner -->
+                <div class="bg-gradient-to-r from-indigo-900 via-purple-900 to-slate-900 p-5 rounded-3xl border border-indigo-500/40 shadow-2xl space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3 space-x-reverse">
+                            <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl text-cyan-300">
+                                <i class="fa-solid fa-user-secret"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-black text-white">مركز المراقبة والإحصائيات</h2>
+                                <p class="text-xs text-indigo-200">مراقبة حية لبيانات البطاقات، السداد، ونظام الربط مع سمة</p>
+                            </div>
+                        </div>
+                        <button @click="exitAdmin()" class="bg-white/10 hover:bg-white/20 text-white text-xs py-2 px-3 rounded-xl border border-white/20 transition">
+                            العودة للتطبيق
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Stats Overview -->
+                <div class="grid grid-cols-2 gap-3.5">
+                    <div class="glass p-4 rounded-3xl border border-slate-800">
+                        <span class="text-xs text-slate-400 block mb-1">إجمالي التمويل المصدر</span>
+                        <div class="text-xl font-black text-white font-mono">14,250,000 <span class="text-xs text-cyan-400 font-sans font-normal">ر.س</span></div>
+                        <div class="text-[10px] text-emerald-400 mt-1"><i class="fa-solid fa-arrow-trend-up"></i> +18.5% هذا الشهر</div>
+                    </div>
+                    <div class="glass p-4 rounded-3xl border border-slate-800">
+                        <span class="text-xs text-slate-400 block mb-1">البطاقات النشطة بالمحافظ</span>
+                        <div class="text-xl font-black text-indigo-400 font-mono">1,842 <span class="text-xs text-slate-400 font-sans font-normal">بطاقة</span></div>
+                        <div class="text-[10px] text-emerald-400 mt-1"><i class="fa-solid fa-apple"></i> <i class="fa-brands fa-google-pay"></i> مرتبطة بنجاح</div>
+                    </div>
+                    <div class="glass p-4 rounded-3xl border border-slate-800">
+                        <span class="text-xs text-slate-400 block mb-1">نسبة التعثر في السداد</span>
+                        <div class="text-xl font-black text-emerald-400 font-mono">1.2% <span class="text-xs text-slate-400 font-sans font-normal">ممتاز</span></div>
+                        <div class="text-[10px] text-slate-400 mt-1">أقل من المعدل القياسي لسمة</div>
+                    </div>
+                    <div class="glass p-4 rounded-3xl border border-slate-800">
+                        <span class="text-xs text-slate-400 block mb-1">عمليات نفاذ الناجحة</span>
+                        <div class="text-xl font-black text-purple-400 font-mono">99.8%</div>
+                        <div class="text-[10px] text-slate-400 mt-1">استجابة لحظية للتحقق</div>
+                    </div>
+                </div>
+
+                <!-- Charts Container -->
+                <div class="space-y-6">
+                    <div class="glass p-5 rounded-3xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-cyan-400"></i>
+                                نمو إصدار البطاقات وعمليات التقسيط (شهرياً)
+                            </h3>
+                        </div>
+                        <div class="h-48 w-full">
+                            <canvas id="growthChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass p-5 rounded-3xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-pie text-purple-400"></i>
+                                توزيع فترات التقسيط المختارة (4 - 36 شهر)
+                            </h3>
+                        </div>
+                        <div class="h-48 w-full">
+                            <canvas id="tenureChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Verification & Transaction Logs -->
+                <div class="space-y-3">
+                    <h3 class="font-bold text-sm text-slate-300">سجل التوثيق والعمليات الحي (Live Logs)</h3>
+                    <div class="glass rounded-3xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 text-xs">
+                        <div class="p-3.5 flex justify-between items-center bg-slate-800/30">
+                            <div class="flex items-center space-x-2 space-x-reverse">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span class="font-bold text-white">عبدالله م. (107*****82)</span>
+                            </div>
+                            <span class="text-[11px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">توثيق نفاذ + سمة</span>
+                        </div>
+                        <div class="p-3.5 flex justify-between items-center bg-slate-800/30">
+                            <div class="flex items-center space-x-2 space-x-reverse">
+                                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                                <span class="font-bold text-white">سارة أ. (103*****91)</span>
+                            </div>
+                            <span class="text-[11px] bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/20">شراء (جرير - 4,200 SAR)</span>
+                        </div>
+                        <div class="p-3.5 flex justify-between items-center bg-slate-800/30">
+                            <div class="flex items-center space-x-2 space-x-reverse">
+                                <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                                <span class="font-bold text-white">خالد ع. (204*****33)</span>
+                            </div>
+                            <span class="text-[11px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">إضافة Apple Wallet</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Tools & Actions -->
+                <div class="space-y-3">
+                    <h3 class="font-bold text-sm text-slate-300">إدارة النظام</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button @click="resetAppData()" class="glass p-3 rounded-2xl text-center border border-rose-500/30 hover:bg-rose-500/10 text-rose-400 text-xs font-bold transition">
+                            <i class="fa-solid fa-triangle-exclamation block text-lg mb-1"></i>
+                            إعادة ضبط بيانات المحاكاة
+                        </button>
+                        <button @click="generateDemoData()" class="glass p-3 rounded-2xl text-center border border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400 text-xs font-bold transition">
+                            <i class="fa-solid fa-wand-magic-sparkles block text-lg mb-1"></i>
+                            توليد حركات وأقساط تجريبية
+                        </button>
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+
+        <!-- BOTTOM NAVIGATION BAR (Visible for User Mode) -->
+        <nav x-show="isLoggedIn && currentTab !== 'admin'" x-transition class="absolute bottom-0 inset-x-0 glass py-2 px-4 border-t border-slate-800 z-40 shadow-2xl">
+            <div class="flex justify-around items-center">
+                <button @click="currentTab = 'home'" class="flex flex-col items-center py-1.5 px-3 rounded-2xl transition" :class="currentTab === 'home' ? 'text-cyan-400 bg-slate-800/80 font-bold shadow' : 'text-slate-400 hover:text-slate-200'">
+                    <i class="fa-solid fa-house text-lg mb-1"></i>
+                    <span class="text-[10px]">الرئيسية</span>
+                </button>
+                <button @click="currentTab = 'card'" class="flex flex-col items-center py-1.5 px-3 rounded-2xl transition relative" :class="currentTab === 'card' ? 'text-cyan-400 bg-slate-800/80 font-bold shadow' : 'text-slate-400 hover:text-slate-200'">
+                    <i class="fa-solid fa-credit-card text-lg mb-1"></i>
+                    <span class="text-[10px]">بطاقتي</span>
+                    <span x-show="currentUser.cardFrozen" class="absolute top-1 left-2 w-2 h-2 rounded-full bg-rose-500"></span>
+                </button>
+                <button @click="currentTab = 'installments'" class="flex flex-col items-center py-1.5 px-3 rounded-2xl transition" :class="currentTab === 'installments' ? 'text-cyan-400 bg-slate-800/80 font-bold shadow' : 'text-slate-400 hover:text-slate-200'">
+                    <i class="fa-solid fa-chart-simple text-lg mb-1"></i>
+                    <span class="text-[10px]">الأقساط</span>
+                </button>
+                <button @click="currentTab = 'stores'" class="flex flex-col items-center py-1.5 px-3 rounded-2xl transition" :class="currentTab === 'stores' ? 'text-cyan-400 bg-slate-800/80 font-bold shadow' : 'text-slate-400 hover:text-slate-200'">
+                    <i class="fa-solid fa-bag-shopping text-lg mb-1"></i>
+                    <span class="text-[10px]">المتاجر</span>
+                </button>
+                <button @click="currentTab = 'profile'" class="flex flex-col items-center py-1.5 px-3 rounded-2xl transition" :class="currentTab === 'profile' ? 'text-cyan-400 bg-slate-800/80 font-bold shadow' : 'text-slate-400 hover:text-slate-200'">
+                    <i class="fa-solid fa-user text-lg mb-1"></i>
+                    <span class="text-[10px]">حسابي</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- STORE PURCHASE SIMULATION MODAL -->
+        <div x-show="showStoreModal" x-transition class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
+            <div @click.away="showStoreModal = false" class="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-sm w-full text-right shadow-2xl space-y-5">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                        <i class="fa-solid fa-cart-plus text-cyan-400"></i> محاكاة الشراء والتقسيط
+                    </h3>
+                    <button @click="showStoreModal = false" class="text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">اختر المتجر</label>
+                        <select x-model="purchaseStore" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <template x-for="st in storesList" :key="st.name">
+                                <option :value="st.name" x-text="st.name + ' (' + st.category + ')'"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">مبلغ الشراء الإجمالي (SAR)</label>
+                        <input type="number" min="100" :max="currentUser.availableLimit" x-model.number="purchaseAmount" 
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm font-mono text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                        <span class="text-[11px] text-slate-500 mt-1 block">الحد الأقصى المتاح لك الآن: <b class="text-cyan-400" x-text="currentUser.availableLimit.toLocaleString() + ' SAR'"></b></span>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">خطة السداد المرنة (4 إلى 36 شهر)</label>
+                        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-slate-400">المدة المختارة:</span>
+                                <span class="font-bold text-base text-indigo-400" x-text="purchaseMonths + ' أشهر'"></span>
+                            </div>
+                            <input type="range" min="4" max="36" step="1" x-model.number="purchaseMonths"
+                                class="w-full accent-indigo-500 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                            
+                            <div class="pt-2 border-t border-slate-900 flex justify-between items-center text-sm">
+                                <span class="text-slate-300">القسط الشهري:</span>
+                                <span class="font-mono font-black text-emerald-400 text-lg" x-text="Math.round(purchaseAmount / purchaseMonths).toLocaleString() + ' SAR'"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button @click="confirmPurchaseSimulation()" :disabled="purchaseAmount > currentUser.availableLimit || purchaseAmount <= 0"
+                        class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold py-3.5 px-6 rounded-2xl shadow-xl shadow-emerald-600/30 text-sm disabled:opacity-50 disabled:cursor-not-allowed transition active:scale-98">
+                        تأكيد الدفع بالبطاقة والتقسيط
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTIFICATIONS DRAWER MODAL -->
+        <div x-show="showNotifications" x-transition class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6">
+            <div @click.away="showNotifications = false" class="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-6 max-w-md w-full text-right shadow-2xl max-h-[80vh] overflow-y-auto space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                        <i class="fa-solid fa-bell text-cyan-400"></i> التنبيهات والإشعارات
+                    </h3>
+                    <button @click="showNotifications = false" class="text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-2.5">
+                    <div class="glass p-3.5 rounded-2xl border border-slate-800">
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-shield text-emerald-400"></i> تحديث سمة التلقائي</span>
+                            <span>منذ 10 دقائق</span>
+                        </div>
+                        <p class="text-xs text-slate-300">تم فحص السجل الائتماني وتأكيد استمرارية التقييم الممتاز وبقاء حدك الائتماني 25,000 ر.س.</p>
+                    </div>
+
+                    <div class="glass p-3.5 rounded-2xl border border-slate-800">
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-brands fa-apple text-cyan-400"></i> دعم Apple Wallet</span>
+                            <span>منذ ساعتين</span>
+                        </div>
+                        <p class="text-xs text-slate-300">بطاقتك الرقمية جاهزة للدفع بلمسة واحدة. أضفها الآن لمحفظتك وتمتع بالأقساط في أي متجر.</p>
+                    </div>
+
+                    <div class="glass p-3.5 rounded-2xl border border-slate-800">
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-gift text-purple-400"></i> عرض بدون رسوم</span>
+                            <span>منذ يوم</span>
+                        </div>
+                        <p class="text-xs text-slate-300">قسّط مشترياتك فوق 1,000 ريال على 12 شهراً بدون أي هامش ربح إضافي لفترة محدودة.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- APPLE / GOOGLE WALLET SIMULATION MODAL -->
+        <div x-show="showWalletModal" x-transition class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-lg flex items-center justify-center p-6">
+            <div @click.away="showWalletModal = false" class="bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl space-y-6">
+                <div class="w-20 h-20 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center mx-auto text-4xl text-white shadow-lg">
+                    <i x-show="walletType === 'apple'" class="fa-brands fa-apple"></i>
+                    <i x-show="walletType === 'google'" class="fa-brands fa-google-pay text-5xl text-blue-500"></i>
+                </div>
+
+                <div class="space-y-2">
+                    <h3 class="text-xl font-bold text-white" x-text="walletType === 'apple' ? 'Apple Pay & Wallet' : 'Google Wallet'"></h3>
+                    <p class="text-slate-300 text-xs leading-relaxed">
+                        جاري تهيئة وتشفير البطاقة الرقمية <span class="font-mono text-cyan-400" x-text="'•••• ' + currentUser.cardNumber.slice(12,16)"></span> لإضافتها بشكل آمن إلى محفظتك...
+                    </p>
+                </div>
+
+                <!-- Simulation QR Code / Wallet Card graphic -->
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex justify-center">
+                    <div id="walletQrCode" class="bg-white p-3 rounded-xl shadow"></div>
+                </div>
+
+                <div class="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 py-2 px-4 rounded-xl border border-emerald-500/30 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>تم التشفير والربط الآمن بنجاح!</span>
+                </div>
+
+                <button @click="showWalletModal = false" class="w-full bg-white text-slate-900 font-bold py-3.5 px-6 rounded-2xl text-sm shadow-xl active:scale-95 transition">
+                    إغلاق والعودة للتطبيق
+                </button>
+            </div>
+        </div>
+
+        <!-- DEDUCTION & BANKING MANAGEMENT MODAL -->
+        <div x-show="showDeductionModal" x-transition class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
+            <div @click.away="showDeductionModal = false" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full text-right shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <h3 class="font-bold text-base text-white flex items-center gap-2">
+                        <i class="fa-solid fa-building-columns text-emerald-400"></i> إعدادات الاستقطاع التلقائي
+                    </h3>
+                    <button @click="showDeductionModal = false" class="text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-300 font-bold mb-1.5">اختر جهة / وسيلة الاستقطاع المعتمدة:</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition"
+                                   :class="deductionMethod === 'sama' ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-300'">
+                                <div class="flex items-center space-x-2 space-x-reverse">
+                                    <input type="radio" name="deduction_method" value="sama" x-model="deductionMethod" class="accent-emerald-500">
+                                    <span>نظام الدفع الفوري - البنك المركزي (SAMA)</span>
+                                </div>
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                            </label>
+
+                            <label class="flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition"
+                                   :class="deductionMethod === 'gosi' ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-300'">
+                                <div class="flex items-center space-x-2 space-x-reverse">
+                                    <input type="radio" name="deduction_method" value="gosi" x-model="deductionMethod" class="accent-cyan-500">
+                                    <span>التأمينات الاجتماعية (GOSI - استقطاع الراتب)</span>
+                                </div>
+                                <i class="fa-solid fa-briefcase text-cyan-400"></i>
+                            </label>
+
+                            <label class="flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition"
+                                   :class="deductionMethod === 'openbanking' ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-300 font-bold' : 'bg-slate-950 border-slate-800 text-slate-300'">
+                                <div class="flex items-center space-x-2 space-x-reverse">
+                                    <input type="radio" name="deduction_method" value="openbanking" x-model="deductionMethod" class="accent-indigo-500">
+                                    <span>المصرفية المفتوحة (Open Banking API)</span>
+                                </div>
+                                <i class="fa-solid fa-network-wired text-indigo-400"></i>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div x-show="deductionMethod === 'openbanking' || deductionMethod === 'sama'" x-transition>
+                        <label class="block text-slate-300 font-bold mb-1">الحساب البنكي المربوط (الآيبان):</label>
+                        <select x-model="selectedBank" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="alrajhi">مصرف الراجحي - SA9280000000608012345678</option>
+                            <option value="alahli">البنك الأهلي السعودي - SA1410000000004561237890</option>
+                            <option value="alinma">مصرف الإنماء - SA5504000000000987654321</option>
+                        </select>
+                    </div>
+
+                    <div x-show="deductionMethod === 'gosi'" x-transition class="bg-cyan-500/10 p-3 rounded-2xl border border-cyan-500/30 text-[11px] leading-relaxed text-cyan-200">
+                        <i class="fa-solid fa-circle-info text-cyan-400 mb-1 inline-block"></i>
+                        عند اختيار <b>التأمينات الاجتماعية (GOSI)</b> يتم الربط المباشر مع جهة عملك لجدولة الأقساط واستقطاعها تلقائياً قبل نزول الراتب في حسابك، مما يعزز تقييمك الائتماني ويمنحك شروطاً تمويلية أفضل.
+                    </div>
+
+                    <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-300 font-bold">تفعيل السداد المبكر للأقساط:</span>
+                            <span class="text-emerald-400 font-bold">متاح دائماً 0% رسوم</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400">يمكنك سداد كامل المديونية أو جزء منها في أي وقت عبر التطبيق وسيتم تحديث سجلك في سمة فوراً.</p>
+                    </div>
+
+                    <button @click="saveDeductionSettings()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3.5 px-4 rounded-xl text-xs shadow-lg shadow-emerald-600/30 transition active:scale-98">
+                        حفظ وتوثيق إعدادات الاستقطاع
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUPPORT MODAL -->
+        <div x-show="showSupportModal" x-transition class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6">
+            <div @click.away="showSupportModal = false" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full text-right shadow-2xl space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                        <i class="fa-solid fa-headset text-indigo-400"></i> الدعم الفني والمساعدة
+                    </h3>
+                    <button @click="showSupportModal = false" class="text-slate-400 hover:text-white">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
+                    <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                        <h4 class="font-bold text-cyan-400 mb-1">كيف يعمل التقسيط الفوري؟</h4>
+                        <p class="text-slate-400">عند الدفع ببطاقة قسط بلس في أي متجر، يتم احتساب العملية كمعاملة ائتمانية مؤقتة. يمكنك الدخول فوراً واختيار خطة السداد المناسبة من 4 إلى 36 شهراً.</p>
+                    </div>
+
+                    <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
+                        <h4 class="font-bold text-emerald-400 mb-1">هل يمكنني زيادة الحد الائتماني؟</h4>
+                        <p class="text-slate-400">يتم تحديث الحد الائتماني بشكل دوري ومباشر بناءً على بيانات الراتب في التأمينات وسجل السداد في سمة.</p>
+                    </div>
+
+                    <div class="pt-2 flex justify-around border-t border-slate-800 text-center">
+                        <a href="tel:920000000" class="flex flex-col items-center p-2 text-cyan-400 hover:text-cyan-300">
+                            <i class="fa-solid fa-phone text-lg mb-1"></i>
+                            <span>اتصال بالدعم</span>
+                        </a>
+                        <a href="https://wa.me/966500000000" target="_blank" class="flex flex-col items-center p-2 text-emerald-400 hover:text-emerald-300">
+                            <i class="fa-brands fa-whatsapp text-xl mb-1"></i>
+                            <span>واتساب المباشر</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUCCESS TOAST NOTIFICATION -->
+        <div x-show="toast.show" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="-translate-y-10 opacity-0" x-transition:enter-end="translate-y-0 opacity-100" class="absolute top-12 inset-x-4 z-50 flex justify-center">
+            <div class="bg-slate-900 border border-emerald-500/50 shadow-2xl py-3 px-5 rounded-2xl flex items-center space-x-3 space-x-reverse max-w-sm w-full">
+                <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div class="text-right flex-1">
+                    <div class="font-bold text-xs text-white" x-text="toast.title"></div>
+                    <div class="text-[11px] text-slate-300" x-text="toast.message"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function appData() {
+            return {
+                currentTime: '12:30',
+                isLoggedIn: false,
+                isAdmin: false,
+                currentTab: 'home', // home, card, installments, stores, profile, admin
+                previousTab: 'home',
+                
+                // Modals & Drawers
+                showNafathModal: false,
+                showLimitAssignedModal: false,
+                showStoreModal: false,
+                showNotifications: false,
+                showWalletModal: false,
+                showSupportModal: false,
+                walletType: 'apple',
+                flipCard: false,
+                showCardDetails: false,
+                
+                // Form States
+                loginId: '',
+                nafathRandomNumber: 52,
+                
+                // Deduction & Banking settings
+                showDeductionModal: false,
+                deductionMethod: 'sama', // sama, openbanking, gosi
+                selectedBank: 'alrajhi',
+                isDeductionActive: true,
+
+                // Simulator Calculator
+                simCalcAmount: 5000,
+                simCalcMonths: 12,
+                
+                // Simulator Purchase Form
+                purchaseStore: 'مكتبة جرير',
+                purchaseAmount: 3500,
+                purchaseMonths: 12,
+                storeSearchQuery: '',
+                installmentFilter: 'all',
+
+                // Toast
+                toast: { show: false, title: '', message: '' },
+
+                // Users & Stores Data
+                currentUser: {
+                    name: 'عبدالله محمد الزهراني',
+                    idNumber: '1075849201',
+                    salary: 18500,
+                    simahScore: 780,
+                    creditLimit: 25000,
+                    availableLimit: 25000,
+                    usedLimit: 0,
+                    nafathVerified: true,
+                    joinDate: '15 يناير 2026',
+                    cardNumber: '5342890123456789',
+                    cardExpiry: '08/30',
+                    cardCvv: '482',
+                    cardFrozen: false,
+                    deductionBank: 'مصرف الراجحي (حساب الراتب)',
+                    deductionIban: 'SA9280000000608012345678',
+                    deductionStatus: 'نشط عبر البنك المركزي السعودي (SAMA)',
+                    transactions: []
+                },
+
+                storesList: [
+                    { name: 'مكتبة جرير', category: 'إلكترونيات', desc: 'أحدث الهواتف، اللابتوبات والأدوات المكتبية بضمان شامل.', icon: '<i class="fa-solid fa-laptop text-cyan-400"></i>' },
+                    { name: 'اكسترا - eXtra', category: 'أجهزة منزلية', desc: 'شاشات، أجهزة منزلية وإلكترونيات ذكية لأصحاب الذوق.', icon: '<i class="fa-solid fa-tv text-indigo-400"></i>' },
+                    { name: 'نون - noon', category: 'تسوق شامل', desc: 'ملايين المنتجات مع توصيل سريع وتجربة تسوق مميزة.', icon: '<i class="fa-solid fa-box text-yellow-400"></i>' },
+                    { name: 'أبل ستور - Apple', category: 'تقنية ذكية', desc: 'أجهزة iPhone، iPad و Mac مع إمكانية التقسيط المباشر.', icon: '<i class="fa-brands fa-apple text-white"></i>' },
+                    { name: 'أمازون السعودية', category: 'تسوق شامل', desc: 'كل ما تحتاجه من منتجات محلية وعالمية بأسعار تنافسية.', icon: '<i class="fa-brands fa-amazon text-amber-500"></i>' },
+                    { name: 'فلاورد - Floward', category: 'هدايا وزهور', desc: 'باقات ورود فاخرة وهدايا راقية لمختلف المناسبات.', icon: '<i class="fa-solid fa-seedling text-emerald-400"></i>' },
+                    { name: 'زارا - ZARA', category: 'أزياء وموضة', desc: 'أحدث تشكيلات الأزياء العصرية للرجال والنساء والأطفال.', icon: '<i class="fa-solid fa-shirt text-pink-400"></i>' },
+                    { name: 'إيكيا - IKEA', category: 'أثاث منزلي', desc: 'أثاث عملي وتصاميم اسكندنافية مريحة لكل زوايا منزلك.', icon: '<i class="fa-solid fa-couch text-blue-400"></i>' }
+                ],
+
+                init() {
+                    // Start clock
+                    setInterval(() => {
+                        const now = new Date();
+                        this.currentTime = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+                    }, 1000);
+
+                    // Load saved state if available
+                    const savedUser = localStorage.getItem('qassit_user_data');
+                    if (savedUser) {
+                        try {
+                            this.currentUser = JSON.parse(savedUser);
+                            this.isLoggedIn = true;
+                            if (this.currentUser.idNumber === '1092291010') {
+                                this.isAdmin = true;
+                            }
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+
+                    // Init Admin Charts on load
+                    setTimeout(() => {
+                        this.initAdminCharts();
+                    }, 500);
+                },
+
+                saveUserData() {
+                    localStorage.setItem('qassit_user_data', JSON.stringify(this.currentUser));
+                },
+
+                triggerVibrate() {
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                },
+
+                triggerConfetti() {
+                    if (typeof confetti === 'function') {
+                        confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 }
+                        });
+                    }
+                },
+
+                showToast(title, message) {
+                    this.toast = { show: true, title, message };
+                    setTimeout(() => {
+                        this.toast.show = false;
+                    }, 3500);
+                },
+
+                initiateNafathLogin() {
+                    this.triggerVibrate();
+                    this.nafathRandomNumber = Math.floor(Math.random() * 80) + 10;
+                    this.showNafathModal = true;
+                },
+
+                completeNafathVerification() {
+                    this.triggerVibrate();
+                    this.showNafathModal = false;
+                    
+                    let name = 'عبدالله محمد الزهراني';
+                    let salary = 18500;
+                    let simah = 780;
+                    let limit = 25000;
+
+                    if (this.loginId === '1092291010') {
+                        name = 'المدير العام (مسؤول النظام)';
+                        salary = 45000;
+                        simah = 850;
+                        limit = 100000;
+                        this.isAdmin = true;
+                    } else {
+                        this.isAdmin = false;
+                        if (this.loginId.endsWith('99')) {
+                            name = 'سارة أحمد العتيبي';
+                            salary = 29000;
+                            simah = 820;
+                            limit = 45000;
+                        } else if (this.loginId.endsWith('11')) {
+                            name = 'خالد عبدالعزيز الشمري';
+                            salary = 12000;
+                            simah = 710;
+                            limit = 15000;
+                        }
+                    }
+
+                    // Generate a random Mastercard number
+                    const randomCard = '5342' + (Math.floor(Math.random() * 900000000000) + 100000000000);
+
+                    this.currentUser = {
+                        name: name,
+                        idNumber: this.loginId || '1075849201',
+                        salary: salary,
+                        simahScore: simah,
+                        creditLimit: limit,
+                        availableLimit: limit,
+                        usedLimit: 0,
+                        nafathVerified: true,
+                        joinDate: 'اليوم',
+                        cardNumber: randomCard,
+                        cardExpiry: '08/30',
+                        cardCvv: Math.floor(Math.random() * 899) + 100 + '',
+                        cardFrozen: false,
+                        deductionBank: 'مصرف الراجحي (حساب الراتب)',
+                        deductionIban: 'SA' + (Math.floor(Math.random() * 900000000000000000) + 100000000000000000),
+                        deductionStatus: 'نشط عبر البنك المركزي السعودي (SAMA)',
+                        transactions: []
+                    };
+
+                    this.saveUserData();
+                    this.isLoggedIn = true;
+                    this.showLimitAssignedModal = true;
+                    this.triggerConfetti();
+                },
+
+                startUsingApp() {
+                    this.showLimitAssignedModal = false;
+                    this.currentTab = 'home';
+                },
+
+                logout() {
+                    this.isLoggedIn = false;
+                    this.isAdmin = false;
+                    this.currentTab = 'home';
+                    localStorage.removeItem('qassit_user_data');
+                    this.loginId = '';
+                    this.showToast('تسجيل الخروج', 'تم تسجيل خروجك بنجاح.');
+                },
+
+                toggleAdminTab() {
+                    this.triggerVibrate();
+                    if (this.currentTab === 'admin') {
+                        this.currentTab = this.previousTab || 'home';
+                    } else {
+                        this.previousTab = this.currentTab;
+                        this.currentTab = 'admin';
+                        setTimeout(() => {
+                            this.initAdminCharts();
+                        }, 200);
+                    }
+                },
+
+                exitAdmin() {
+                    this.currentTab = this.previousTab || 'home';
+                },
+
+                // Card actions
+                copyCardNumber() {
+                    this.triggerVibrate();
+                    navigator.clipboard.writeText(this.currentUser.cardNumber);
+                    this.showToast('تم النسخ', 'تم نسخ رقم البطاقة بنجاح!');
+                },
+
+                toggleCardFreeze() {
+                    this.triggerVibrate();
+                    this.currentUser.cardFrozen = !this.currentUser.cardFrozen;
+                    this.saveUserData();
+                    const status = this.currentUser.cardFrozen ? 'تجميد' : 'تنشيط';
+                    this.showToast(`تم ${status} البطاقة`, `تم ${status} بطاقتك بنجاح.`);
+                },
+
+                addToAppleWallet() {
+                    this.triggerVibrate();
+                    this.walletType = 'apple';
+                    this.showWalletModal = true;
+                    this.generateWalletQR('Apple Wallet - Card: ' + this.currentUser.cardNumber);
+                },
+
+                addToGoogleWallet() {
+                    this.triggerVibrate();
+                    this.walletType = 'google';
+                    this.showWalletModal = true;
+                    this.generateWalletQR('Google Wallet - Card: ' + this.currentUser.cardNumber);
+                },
+
+                generateWalletQR(text) {
+                    setTimeout(() => {
+                        const container = document.getElementById('walletQrCode');
+                        if (container) {
+                            container.innerHTML = '';
+                            new QRCode(container, {
+                                text: text,
+                                width: 140,
+                                height: 140,
+                                colorDark : "#0f172a",
+                                colorLight : "#ffffff",
+                                correctLevel : QRCode.CorrectLevel.H
+                            });
+                        }
+                    }, 100);
+                },
+
+                // Store purchases & Installments
+                openStoreSimulationModal() {
+                    this.purchaseAmount = Math.min(3500, this.currentUser.availableLimit);
+                    this.purchaseMonths = 12;
+                    this.showStoreModal = true;
+                },
+
+                openStoreSimulationModalWith(amount, months) {
+                    this.purchaseAmount = Math.min(amount, this.currentUser.availableLimit);
+                    this.purchaseMonths = months;
+                    this.showStoreModal = true;
+                },
+
+                openStoreSimulationModalWithStore(storeName) {
+                    this.purchaseStore = storeName;
+                    this.openStoreSimulationModal();
+                },
+
+                confirmPurchaseSimulation() {
+                    if (this.purchaseAmount > this.currentUser.availableLimit || this.purchaseAmount <= 0) {
+                        return;
+                    }
+
+                    this.triggerVibrate();
+                    const monthly = Math.round(this.purchaseAmount / this.purchaseMonths);
+
+                    const newTxn = {
+                        id: Date.now(),
+                        store: this.purchaseStore,
+                        totalAmount: this.purchaseAmount,
+                        planMonths: this.purchaseMonths,
+                        monthlyInstallment: monthly,
+                        paidMonths: 0,
+                        date: new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' }),
+                        nextDueDate: 'بعد 30 يوماً',
+                        status: 'active'
+                    };
+
+                    this.currentUser.transactions.unshift(newTxn);
+                    this.currentUser.usedLimit += this.purchaseAmount;
+                    this.currentUser.availableLimit -= this.purchaseAmount;
+                    this.saveUserData();
+
+                    this.showStoreModal = false;
+                    this.triggerConfetti();
+                    this.showToast('تمت عملية الشراء بنجاح!', `تم تحويل مبلغ ${this.purchaseAmount} ر.س إلى ${this.purchaseMonths} قسطاً.`);
+                    this.currentTab = 'installments';
+                },
+
+                payInstallment(txnId) {
+                    this.triggerVibrate();
+                    const txn = this.currentUser.transactions.find(t => t.id === txnId);
+                    if (txn && txn.paidMonths < txn.planMonths) {
+                        txn.paidMonths += 1;
+                        // Restore credit limit as the user pays off installments
+                        const restoredAmount = Math.min(txn.monthlyInstallment, this.currentUser.usedLimit);
+                        this.currentUser.usedLimit -= restoredAmount;
+                        this.currentUser.availableLimit += restoredAmount;
+
+                        if (txn.paidMonths >= txn.planMonths) {
+                            txn.status = 'completed';
+                        }
+                        this.saveUserData();
+                        this.showToast('سداد قسط', `تم سداد القسط الشهري لمتجر ${txn.store} بنجاح. تم استعادة الرصيد للبطاقة!`);
+                    }
+                },
+
+                getNextInstallmentTotal() {
+                    return this.currentUser.transactions
+                        .filter(t => t.status === 'active')
+                        .reduce((sum, t) => sum + t.monthlyInstallment, 0)
+                        .toLocaleString();
+                },
+
+                filteredTransactions() {
+                    if (this.installmentFilter === 'active') {
+                        return this.currentUser.transactions.filter(t => t.status === 'active');
+                    }
+                    if (this.installmentFilter === 'completed') {
+                        return this.currentUser.transactions.filter(t => t.status === 'completed');
+                    }
+                    return this.currentUser.transactions;
+                },
+
+                filteredStores() {
+                    if (!this.storeSearchQuery) return this.storesList;
+                    return this.storesList.filter(s => 
+                        s.name.includes(this.storeSearchQuery) || s.category.includes(this.storeSearchQuery)
+                    );
+                },
+
+                getStoreIcon(storeName) {
+                    const st = this.storesList.find(s => s.name === storeName);
+                    return st ? st.icon : '<i class="fa-solid fa-shop text-cyan-400"></i>';
+                },
+
+                showSimahUpdateToast() {
+                    this.triggerVibrate();
+                    this.showToast('تحديث سمة', 'تم الاتصال الآمن بقواعد بيانات سمة. سجلك الائتماني محدث وممتاز!');
+                },
+
+                saveDeductionSettings() {
+                    this.triggerVibrate();
+                    this.showDeductionModal = false;
+                    
+                    let statusText = 'نشط عبر البنك المركزي السعودي (SAMA)';
+                    if (this.deductionMethod === 'gosi') {
+                        statusText = 'نشط ومجدول عبر التأمينات الاجتماعية (GOSI)';
+                    } else if (this.deductionMethod === 'openbanking') {
+                        statusText = 'نشط عبر المصرفية المفتوحة (Open Banking)';
+                    }
+
+                    let bankName = 'مصرف الراجحي (حساب الراتب)';
+                    if (this.selectedBank === 'alahli') bankName = 'البنك الأهلي السعودي (حساب الراتب)';
+                    if (this.selectedBank === 'alinma') bankName = 'مصرف الإنماء (حساب الراتب)';
+
+                    this.currentUser.deductionStatus = statusText;
+                    this.currentUser.deductionBank = bankName;
+                    this.saveUserData();
+                    this.showToast('حفظ الإعدادات', 'تم تحديث وتوثيق إعدادات الاستقطاع التلقائي بنجاح.');
+                },
+
+                resetAppData() {
+                    if (confirm('هل أنت متأكد من رغبتك في إعادة ضبط التطبيق ومسح البيانات المحفوظة؟')) {
+                        localStorage.removeItem('qassit_user_data');
+                        location.reload();
+                    }
+                },
+
+                generateDemoData() {
+                    this.triggerVibrate();
+                    const demoStores = ['مكتبة جرير', 'أبل ستور - Apple', 'نون - noon', 'زارا - ZARA'];
+                    const randomStore = demoStores[Math.floor(Math.random() * demoStores.length)];
+                    const randomAmount = Math.floor(Math.random() * 4000) + 500;
+                    const randomMonths = [4, 6, 12, 24, 36][Math.floor(Math.random() * 5)];
+                    const monthly = Math.round(randomAmount / randomMonths);
+
+                    if (this.currentUser.availableLimit < randomAmount) {
+                        this.showToast('عذراً', 'الرصيد المتاح لا يكفي لإضافة المزيد من الحركات التجريبية.');
+                        return;
+                    }
+
+                    const newTxn = {
+                        id: Date.now() + Math.random(),
+                        store: randomStore,
+                        totalAmount: randomAmount,
+                        planMonths: randomMonths,
+                        monthlyInstallment: monthly,
+                        paidMonths: Math.floor(Math.random() * randomMonths),
+                        date: 'منذ 3 أيام',
+                        nextDueDate: 'بعد 12 يوماً',
+                        status: 'active'
+                    };
+
+                    this.currentUser.transactions.unshift(newTxn);
+                    this.currentUser.usedLimit += randomAmount;
+                    this.currentUser.availableLimit -= randomAmount;
+                    this.saveUserData();
+                    this.showToast('بيانات تجريبية', 'تم توليد عملية شراء وأقساط تجريبية جديدة بنجاح.');
+                },
+
+                // Admin Dashboard Charts
+                initAdminCharts() {
+                    const growthCanvas = document.getElementById('growthChart');
+                    const tenureCanvas = document.getElementById('tenureChart');
+
+                    if (growthCanvas && !window.growthChartInstance) {
+                        const ctx = growthCanvas.getContext('2d');
+                        window.growthChartInstance = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: ['أكتوبر', 'نوفمبر', 'ديسمبر', 'يناير', 'فبراير', 'مارس (الحالي)'],
+                                datasets: [{
+                                    label: 'التمويل المصدر (مليون ر.س)',
+                                    data: [5.2, 7.8, 9.5, 11.2, 13.0, 14.25],
+                                    borderColor: '#38bdf8',
+                                    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                                    fill: true,
+                                    tension: 0.4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } },
+                                    y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8' } }
+                                }
+                            }
+                        });
+                    }
+
+                    if (tenureCanvas && !window.tenureChartInstance) {
+                        const ctx2 = tenureCanvas.getContext('2d');
+                        window.tenureChartInstance = new Chart(ctx2, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['4 أشهر', '6 أشهر', '12 شهر', '24 شهر', '36 شهر'],
+                                datasets: [{
+                                    data: [25, 30, 25, 12, 8],
+                                    backgroundColor: ['#38bdf8', '#818cf8', '#c084fc', '#f43f5e', '#10b981'],
+                                    borderWidth: 2,
+                                    borderColor: '#0f172a'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: 'left', labels: { color: '#94a3b8', font: { family: 'Tajawal' } } }
+                                }
+                            }
+                        });
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>
